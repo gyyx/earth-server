@@ -25,16 +25,16 @@
 using Index = S2PointIndex<string>;
 using PointData = Index::PointData;
 
+//
+std::map<char*, S2Point> earthMap;
+
 struct settings settings;
 
 
 Index earthIndex;
 
 
-typedef struct token_s {
-    char *value;
-    size_t length;
-} token_t;
+
 
 /**
  增加一个坐标信息
@@ -52,8 +52,10 @@ static inline void process_add_command(struct evbuffer *output, token_t *tokens)
         evbuffer_add(output, "bad command\n", strlen("bad command\n"));
         return;
     }
-    PointData pd;
+    earthMap.insert(std::pair<char*, S2Point>( tokens[1].value, S2LatLng::FromDegrees(lat_degrees, lng_degrees)));
     earthIndex.Add(S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint(),tokens[1].value);
+    uint32_t hv = SpookyHash::Hash32(tokens[1].value, strlen(tokens[1].value), 1);
+    struct item it;
 
     evbuffer_add(output, "SUCCESS\n", strlen("SUCCESS\n"));
     
@@ -175,10 +177,6 @@ static inline void process_delete_command(struct evbuffer *output, token_t *toke
     evbuffer_add(output, "SUCCESS\n", strlen("SUCCESS\n"));
 }
 
-
-static void process_save_command(struct evbuffer *output, token_t *tokens) {
-    
-}
 
 /**
  通过用户输入参数获得命令各个参数
@@ -358,7 +356,7 @@ void run() {
         perror("listen");
         return;
     }
-    
+    table_init(16);
     // 创建一个event
     listenner_event = event_new(base, listener, EV_READ|EV_PERSIST, do_accept, (void *)base);
     
