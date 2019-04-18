@@ -25,8 +25,7 @@
 using Index = S2PointIndex<string>;
 using PointData = Index::PointData;
 
-//
-std::map<char*, S2Point> earthMap;
+
 
 struct settings settings;
 
@@ -52,10 +51,12 @@ static inline void process_add_command(struct evbuffer *output, token_t *tokens)
         evbuffer_add(output, "bad command\n", strlen("bad command\n"));
         return;
     }
-    earthMap.insert(std::pair<char*, S2Point>( tokens[1].value, S2LatLng::FromDegrees(lat_degrees, lng_degrees)));
-    earthIndex.Add(S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint(),tokens[1].value);
+    S2Point s2 = S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint();
+    earthIndex.Add(s2, tokens[1].value);
     uint32_t hv = SpookyHash::Hash32(tokens[1].value, strlen(tokens[1].value), 1);
-    struct item it;
+    Item it;
+    uint64_t a = S2CellId(s2).id();
+    
 
     evbuffer_add(output, "SUCCESS\n", strlen("SUCCESS\n"));
     

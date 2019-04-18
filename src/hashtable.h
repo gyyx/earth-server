@@ -8,7 +8,8 @@
 #include <cstdlib>
 typedef struct _item {
     struct _item *h_next;
-    
-} item;
+    char *key;
+    uint64_t data_cell;
+} Item;
 void table_init(const int hashpower_init);
-int table_insert(item *item, const uint32_t hv);
+int table_insert(Item *item, const uint32_t hv);

@@ -12,17 +12,17 @@
 
 uint32_t hashpower = 16;
 
-static item** primary_hashtable = 0;
+static Item** primary_hashtable = 0;
 
 void table_init(const int hashpower_init) {
     if (hashpower_init) {
         hashpower = hashpower_init;
     }
-    primary_hashtable = (item**)calloc(hashsize(hashpower), sizeof(void *));
+    primary_hashtable = (Item**)calloc(hashsize(hashpower), sizeof(void *));
     
 }
 
-int table_insert(item *item, const uint32_t hv) {
+int table_insert(Item *item, const uint32_t hv) {
     item->h_next = primary_hashtable[hv && hashmask(hashpower)];
     primary_hashtable[hv && hashmask(hashpower)] = item;
     return 1;
