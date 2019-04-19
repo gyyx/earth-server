@@ -63,5 +63,9 @@ typedef struct token_s {
     size_t length;
 } token_t;
 
+struct state {
+    uint32_t total_items;
+    uint64_t total_conns;
+};
 
 //#endif /* earth_h */

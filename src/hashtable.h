@@ -6,10 +6,16 @@
 //
 #include <cstdint>
 #include <cstdlib>
-typedef struct _item {
-    struct _item *h_next;
+#include <syslog.h>
+#include <string.h>
+struct Item {
+    Item *next;
+    Item *prev;
+    Item *h_next;
     char *key;
+    uint32_t keylen;
     uint64_t data_cell;
-} Item;
+};
 void table_init(const int hashpower_init);
 int table_insert(Item *item, const uint32_t hv);
+Item *table_find(const char *key, const size_t nkey, const uint32_t hv) ;

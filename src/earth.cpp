@@ -28,12 +28,14 @@ using PointData = Index::PointData;
 
 
 struct settings settings;
-
+struct state state;
 
 Index earthIndex;
 
 
-
+static void process_status_command(struct evbuffer *output, token_t *tokens) {
+    
+}
 
 /**
  增加一个坐标信息
@@ -54,11 +56,20 @@ static inline void process_add_command(struct evbuffer *output, token_t *tokens)
     S2Point s2 = S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint();
     earthIndex.Add(s2, tokens[1].value);
     uint32_t hv = SpookyHash::Hash32(tokens[1].value, strlen(tokens[1].value), 1);
-    Item it;
-    uint64_t a = S2CellId(s2).id();
+    Item *it;
+    it = new Item();
+    it->data_cell =S2CellId(s2).id();
+    it->key = (char *)calloc(tokens[1].length, sizeof(char));
+    memcpy(it->key, tokens[1].value, tokens[1].length);
+    it->keylen = tokens[1].length;
     
-
+    table_insert(it, hv);
+    state.total_items++;
     evbuffer_add(output, "SUCCESS\n", strlen("SUCCESS\n"));
+    
+}
+
+static inline void process_set_command(struct evbuffer *output, token_t *tokens) {
     
 }
 
@@ -71,6 +82,27 @@ static void process_save_command(struct evbuffer *output) {
     
 }
 
+
+static inline void process_get_command(struct evbuffer *output, token_t *tokens) {
+    Item *it ;
+    double lat_degrees, lng_degress;
+    it= NULL;
+    char line[100];
+
+    it = table_find(tokens[1].value, tokens[1].length, SpookyHash::Hash32(tokens[1].value, tokens[1].length, 1));
+    if (it) {
+        S2LatLng s2 = S2CellId(it->data_cell).ToLatLng();
+        lat_degrees = s2.lat().degrees();
+        lng_degress = s2.lng().degrees();
+        sprintf(line, "%f %f\n",lat_degrees,lng_degress);
+    }
+    else {
+        sprintf(line, "NULL");
+    }
+    
+    evbuffer_add(output, line, strlen(line));
+}
+
 /**
  搜索距离坐标最近的N个结果，示例：search 33.462 112.333 10\r\n
  
@@ -78,9 +110,11 @@ static void process_save_command(struct evbuffer *output) {
  @param tokens <#tokens description#>
  @return <#return value description#>
  */
-static inline void process_get_command(struct evbuffer *output, token_t *tokens) {
+static inline void process_gets_command(struct evbuffer *output, token_t *tokens) {
     double lat_degrees, lng_degress;
     uint32_t resultNum;
+    
+    
     
     if (!(safe_strtod(tokens[1].value, &lat_degrees)
           && safe_strtod(tokens[2].value, &lng_degress)
@@ -88,6 +122,8 @@ static inline void process_get_command(struct evbuffer *output, token_t *tokens)
         evbuffer_add(output, "bad command\n", strlen("bad command\n"));
         return;
     }
+    
+
     
     S2LatLng latlng_query = S2LatLng::FromDegrees(lat_degrees, lng_degress);
     
@@ -249,9 +285,13 @@ int process_command(struct bufferevent *bev, char *command) {
     
     printf("command is:%s,%s, command length:%zu\n",tokens[0].value,tokens[1].value,ntokens);
     
-    if ( ntokens == 5 && strcmp(tokens[COMMAND_TOKEN].value, "get") == 0) {
+    if ( ntokens == 5 && strcmp(tokens[COMMAND_TOKEN].value, "gets") == 0) {
         
-        syslog(LOG_INFO, "input get comand %zu\n",ntokens);
+        syslog(LOG_INFO, "input gets comand %zu\n",ntokens);
+        process_gets_command(output, tokens);
+    }
+    else if (ntokens == 3 && strcmp(tokens[COMMAND_TOKEN].value, "get") == 0) {
+        syslog(LOG_INFO, "input get command");
         process_get_command(output, tokens);
     }
     else if ( ntokens==5 && strcmp(tokens[COMMAND_TOKEN].value, "add") == 0) {
@@ -266,6 +306,7 @@ int process_command(struct bufferevent *bev, char *command) {
         process_delete_command(output, tokens);
     }
     else if ( ntokens == 2 && strcmp(tokens[COMMAND_TOKEN].value, "exit") == 0 ) {
+        evbuffer_add(output, "bye\n", sizeof("bye\n"));
         bufferevent_free(bev);
         
     }
@@ -317,6 +358,7 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
         close(fd);
     }
     else {
+        state.total_conns++;
         evutil_make_socket_nonblocking(fd);
         
         struct bufferevent *bev;
@@ -438,6 +480,8 @@ int main(int argc, char **argv) {
     int c;
     settings.port = 40000;
     settings.run_mode = 0;
+    state.total_items = 0;
+    state.total_conns = 0;
     const char *shortopts =
     "p:"
     "c"

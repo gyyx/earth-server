@@ -13,17 +13,69 @@
 uint32_t hashpower = 16;
 
 static Item** primary_hashtable = 0;
+static Item* linkHead = 0;
 
+/**
+ 初始化hash表
+
+ @param hashpower_init <#hashpower_init description#>
+ */
 void table_init(const int hashpower_init) {
     if (hashpower_init) {
         hashpower = hashpower_init;
     }
-    primary_hashtable = (Item**)calloc(hashsize(hashpower), sizeof(void *));
+    uint32_t arraysize = hashsize(hashpower);
+    primary_hashtable = (Item**)calloc(arraysize, sizeof(void *));
+    linkHead = (Item*)calloc(1, sizeof(void *));
     
 }
 
+/**
+ 查找一个节点
+
+ @param key 要查找的KEY
+ @param nkey KEY的长度
+ @param hv hash值
+ @return 查找的结果，无法找到返回NULL
+ */
+Item *table_find(const char *key, const size_t nkey, const uint32_t hv) {
+    Item *it;
+    uint32_t posit = hv & hashmask(hashpower);
+//    取出指定桶的位置
+    it = primary_hashtable[posit];
+    Item *ret = NULL;
+    
+    while (it) {
+        if ( nkey == it->keylen && memcmp(key,it->key,nkey)==0) {
+            ret = it;
+            break;
+        }
+        it = it->h_next;
+    }
+    
+    return ret;
+}
+
+/**
+ 在表内插入新的数据
+
+ @param item 数据
+ @param hv hash值
+ @return 1成功
+ */
 int table_insert(Item *item, const uint32_t hv) {
-    item->h_next = primary_hashtable[hv && hashmask(hashpower)];
-    primary_hashtable[hv && hashmask(hashpower)] = item;
+    uint32_t posit = hv & hashmask(hashpower);
+    item->h_next = primary_hashtable[posit];
+    primary_hashtable[posit] = item;
+    //构建双向链表
+    item->next = linkHead;
+    linkHead->prev = item;
+    linkHead = item;
+    return 1;
+}
+
+
+int table_delete(const char *key,const size_t nkey,const uint32_t hv) {
+    
     return 1;
 }
