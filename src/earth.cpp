@@ -13,8 +13,7 @@
 // 命令的位置
 #define COMMAND_TOKEN 0
 
-#define PROCESS_NAME "earth_server"
-#define VERSION "1.0a"
+
 
 //定义会用控制台守护进程方式
 #define CONSOLE_RUN 1
@@ -38,25 +37,37 @@ static void process_status_command(struct evbuffer *output, token_t *tokens) {
 }
 
 /**
- 增加一个坐标信息
+ 增加一个坐标信息，内联函数
 
- @param output <#output description#>
- @param tokens <#tokens description#>
+ @param output socket输出句柄
+ @param tokens 操作命令
  @return <#return value description#>
  */
 static inline void process_add_command(struct evbuffer *output, token_t *tokens) {
 
     double lat_degrees, lng_degrees;
+    Item *it;
+    uint32_t hv = SpookyHash::Hash32(tokens[1].value, strlen(tokens[1].value), 1);
+    // 先进行查找是否已经有此数据
+    it = table_find(tokens[1].value, tokens[1].length, hv);
     
+    if (it) {
+        evbuffer_add(output,"already exists\n", strlen("already exists\n"));
+        return;
+    }
+
+    // 参数检查
     if (!(safe_strtod(tokens[2].value, &lat_degrees)
           && safe_strtod(tokens[3].value, &lng_degrees))) {
         evbuffer_add(output, "bad command\n", strlen("bad command\n"));
         return;
     }
+    
+    
+    // 创建一个S2对象
     S2Point s2 = S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint();
     earthIndex.Add(s2, tokens[1].value);
-    uint32_t hv = SpookyHash::Hash32(tokens[1].value, strlen(tokens[1].value), 1);
-    Item *it;
+    
     it = new Item();
     it->data_cell =S2CellId(s2).id();
     it->key = (char *)calloc(tokens[1].length, sizeof(char));
@@ -97,7 +108,7 @@ static inline void process_get_command(struct evbuffer *output, token_t *tokens)
         sprintf(line, "%f %f\n",lat_degrees,lng_degress);
     }
     else {
-        sprintf(line, "NULL");
+        sprintf(line, "NULL\n");
     }
     
     evbuffer_add(output, line, strlen(line));
@@ -210,6 +221,8 @@ static inline void process_delete_command(struct evbuffer *output, token_t *toke
     }
     
     earthIndex.Remove(S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint(), tokens[1].value);
+    
+    table_delete(tokens[1].value, tokens[1].length, SpookyHash::Hash32(tokens[1].value, tokens[1].length, 1));
     
     evbuffer_add(output, "SUCCESS\n", strlen("SUCCESS\n"));
 }

@@ -49,6 +49,9 @@
 #include "hashtable.h"
 #include "SPookyHash.h"
 
+#define PROCESS_NAME "earth_server"
+#define VERSION "1.0a"
+
 
 void do_read(evutil_socket_t fd, short events, void *arg);
 void do_write(evutil_socket_t fd, short events, void *arg);

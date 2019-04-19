@@ -18,4 +18,6 @@ struct Item {
 };
 void table_init(const int hashpower_init);
 int table_insert(Item *item, const uint32_t hv);
-Item *table_find(const char *key, const size_t nkey, const uint32_t hv) ;
+Item *table_find(const char *key, const size_t nkey, const uint32_t hv);
+
+int table_delete(const char *key,const size_t nkey,const uint32_t hv);

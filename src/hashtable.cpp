@@ -43,7 +43,7 @@ Item *table_find(const char *key, const size_t nkey, const uint32_t hv) {
     uint32_t posit = hv & hashmask(hashpower);
 //    取出指定桶的位置
     it = primary_hashtable[posit];
-    Item *ret = NULL;
+    Item *ret = nullptr;
     
     while (it) {
         if ( nkey == it->keylen && memcmp(key,it->key,nkey)==0) {
@@ -86,15 +86,24 @@ static Item **_table_before(const char *key, const size_t nkey, const uint32_t h
 int table_delete(const char *key,const size_t nkey,const uint32_t hv) {
     Item **it = _table_before(key, nkey, hv);
     if ( *it) {
-        Item *nxt;
+        Item *nxt,*cur;
+        cur = *it;
+        
+        // 从哈希表里删除元素
         nxt = (*it)->h_next;
         (*it)->h_next = 0;
         *it = nxt;
         
-        (*it)->prev->next = (*it)->next;
-        (*it)->next->prev = (*it)->prev;
-        delete [](*it)->key;
-        delete *it;
+        // 从双向链表里删除元素
+        if (cur->prev != nullptr) {
+            cur->prev->next = cur->next;
+        }
+        if (cur->next != nullptr ) {
+            cur->next->prev = cur->prev;
+        }
+        
+        delete []cur->key;
+        delete cur;
     }
     return 0;
 }
