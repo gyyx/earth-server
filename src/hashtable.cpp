@@ -74,8 +74,27 @@ int table_insert(Item *item, const uint32_t hv) {
     return 1;
 }
 
+static Item **_table_before(const char *key, const size_t nkey, const uint32_t hv) {
+    Item **pos = &primary_hashtable[hv & hashmask(hashpower)];
+    while (*pos && ((nkey != (*pos)->keylen )|| memcmp(key, (*pos)->key, nkey))) {
+        pos = &(*pos)->h_next;
+    }
+    return pos;
+}
+
 
 int table_delete(const char *key,const size_t nkey,const uint32_t hv) {
-    
-    return 1;
+    Item **it = _table_before(key, nkey, hv);
+    if ( *it) {
+        Item *nxt;
+        nxt = (*it)->h_next;
+        (*it)->h_next = 0;
+        *it = nxt;
+        
+        (*it)->prev->next = (*it)->next;
+        (*it)->next->prev = (*it)->prev;
+        delete [](*it)->key;
+        delete *it;
+    }
+    return 0;
 }
