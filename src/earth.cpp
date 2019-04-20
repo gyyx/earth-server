@@ -13,6 +13,7 @@
 // 命令的位置
 #define COMMAND_TOKEN 0
 
+#define BAD_COMMAND "BAD_COMMAND\n"
 
 
 //定义会用控制台守护进程方式
@@ -52,24 +53,24 @@ static inline void process_add_command(struct evbuffer *output, token_t *tokens)
     it = table_find(tokens[1].value, tokens[1].length, hv);
     
     if (it) {
-        evbuffer_add(output,"already exists\n", strlen("already exists\n"));
+        evbuffer_add(output,"NOT_STORED\n", strlen("NOT_STORED\n"));
         return;
     }
 
     // 参数检查
     if (!(safe_strtod(tokens[2].value, &lat_degrees)
           && safe_strtod(tokens[3].value, &lng_degrees))) {
-        evbuffer_add(output, "bad command\n", strlen("bad command\n"));
+        evbuffer_add(output, BAD_COMMAND, strlen(BAD_COMMAND));
         return;
     }
     
-    
     // 创建一个S2对象
-    S2Point s2 = S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint();
+    S2CellId s2id(S2LatLng::FromDegrees(lat_degrees, lng_degrees));
+    S2Point s2 = s2id.ToPoint();
     earthIndex.Add(s2, tokens[1].value);
     
     it = new Item();
-    it->data_cell =S2CellId(s2).id();
+    it->data_cell =s2id.id();
     it->key = (char *)calloc(tokens[1].length, sizeof(char));
     memcpy(it->key, tokens[1].value, tokens[1].length);
     it->keylen = tokens[1].length;
@@ -130,7 +131,7 @@ static inline void process_gets_command(struct evbuffer *output, token_t *tokens
     if (!(safe_strtod(tokens[1].value, &lat_degrees)
           && safe_strtod(tokens[2].value, &lng_degress)
           && safe_strtoul(tokens[3].value, &resultNum))) {
-        evbuffer_add(output, "bad command\n", strlen("bad command\n"));
+        evbuffer_add(output, BAD_COMMAND, strlen(BAD_COMMAND));
         return;
     }
     
@@ -175,7 +176,7 @@ static inline void process_search_command(struct evbuffer *output, token_t *toke
     if (!(safe_strtod(tokens[1].value, &lat_degrees)
           && safe_strtod(tokens[2].value, &lng_degress)
           && safe_strtoul(tokens[3].value, &resultMeter))) {
-        evbuffer_add(output, "bad command\n", strlen("bad command\n"));
+        evbuffer_add(output, BAD_COMMAND, strlen(BAD_COMMAND));
         return;
     }
     
@@ -212,15 +213,16 @@ static inline void process_search_command(struct evbuffer *output, token_t *toke
  @return <#return value description#>
  */
 static inline void process_delete_command(struct evbuffer *output, token_t *tokens) {
-    double lat_degrees, lng_degrees;
-    
-    if (!(safe_strtod(tokens[2].value, &lat_degrees)
-          && safe_strtod(tokens[3].value, &lng_degrees))) {
-        evbuffer_add(output, "bad command\n", strlen("bad command\n"));
+    // 先进行对象查找
+    Item *it = table_find(tokens[1].value, tokens[1].length, SpookyHash::Hash32(tokens[1].value, tokens[1].length, 1));
+    if (!it) {
+        evbuffer_add(output, "NOT_FOUND\n", strlen("NOT_FOUND\n"));
         return;
     }
+    S2CellId id = S2CellId(it->data_cell);
+
     
-    earthIndex.Remove(S2LatLng::FromDegrees(lat_degrees, lng_degrees).ToPoint(), tokens[1].value);
+    earthIndex.Remove(id.ToPoint(), tokens[1].value);
     
     table_delete(tokens[1].value, tokens[1].length, SpookyHash::Hash32(tokens[1].value, tokens[1].length, 1));
     
@@ -315,7 +317,7 @@ int process_command(struct bufferevent *bev, char *command) {
         syslog(LOG_INFO, "intpu search command \n");
         process_search_command(output, tokens);
     }
-    else if ( ntokens == 5 && strcmp(tokens[COMMAND_TOKEN].value, "delete") == 0) {
+    else if ( ntokens == 3 && strcmp(tokens[COMMAND_TOKEN].value, "delete") == 0) {
         process_delete_command(output, tokens);
     }
     else if ( ntokens == 2 && strcmp(tokens[COMMAND_TOKEN].value, "exit") == 0 ) {

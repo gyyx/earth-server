@@ -83,6 +83,14 @@ static Item **_table_before(const char *key, const size_t nkey, const uint32_t h
 }
 
 
+/**
+ 删除表内指定成员
+
+ @param key 要删除的KEY
+ @param nkey <#nkey description#>
+ @param hv <#hv description#>
+ @return <#return value description#>
+ */
 int table_delete(const char *key,const size_t nkey,const uint32_t hv) {
     Item **it = _table_before(key, nkey, hv);
     if ( *it) {
@@ -91,7 +99,7 @@ int table_delete(const char *key,const size_t nkey,const uint32_t hv) {
         
         // 从哈希表里删除元素
         nxt = (*it)->h_next;
-        (*it)->h_next = 0;
+        (*it)->h_next = nullptr;
         *it = nxt;
         
         // 从双向链表里删除元素
